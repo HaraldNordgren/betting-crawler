@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import urllib, splinter, time, sys
+import splinter, time, sys
 
 url = 'https://www.nordicbet.com/sv/odds#/#?cat=&reg=&sc=3'
 br = splinter.Browser()
