@@ -1,4 +1,6 @@
 *.swp
 
+*.log
+
 *debuglog.txt
 __pycache__/
