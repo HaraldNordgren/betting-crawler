@@ -1,71 +1,80 @@
 #!/usr/bin/env python3
 
-import splinter, time, sys, re, json
+import splinter, time, sys, re#, json
+import database
 import pymysql.cursors
 
-connection = pymysql.connect(host='localhost',
-                             user='root',
-                             password='',
-                             db='teams',
-                             charset='utf8mb4',
-                             cursorclass=pymysql.cursors.DictCursor)
+db = database.match_database()
 
-url = 'https://www.nordicbet.com/sv/odds#/#?cat=&reg=&sc=3'
-br = splinter.Browser()
+try:
+    db.create_table()
+except:
+    pass
 
-br.visit(url)
-time.sleep(10)
+br = splinter.Browser('chrome')
+
+br.visit('https://www.nordicbet.com/sv/odds#/#?cat=&reg=&sc=3')
+betting_site = 'nordicbet'
+#time.sleep(5)
 
 iframe = br.find_by_xpath("//iframe[@id='SportsbookIFrame']")
 br.visit(iframe['src'])
-time.sleep(10)
+#time.sleep(5)
 
-matches = br.find_by_xpath("//div[@ng-repeat='sortedMarket in market']")
 
-teams_pattern = re.compile("(.*) - (.*)")
+date_regex      = re.compile(".* ([0-9]+)/([0-9]+)/([0-9]+)\n.*")
+teams_pattern   = re.compile("(.*) - (.*)")
 
-for match in matches:
+for match_date in br.find_by_xpath("//div[@ng-repeat='marketgroup in marketGroups | filter:filterMarketGroups']"):
 
-    sql_query = "SELECT * FROM matches WHERE "
-
-    event_name = \
-            match.find_by_xpath(".//span[@bo-text='data.EventNameDisplay']")
-
-    team_names = event_name.first.value
-    #print("%s:" % team_names, end="")
-
-    m = re.match(teams_pattern, team_names)
+    date_string = match_date.find_by_xpath(".//div[@class='market-date ng-binding']")[0].text
+    m = re.match(date_regex, date_string)
 
     if m is None:
         sys.exit(1)
 
-    home_team = m.group(1)
-    away_team = m.group(2)
-    
-    sql_query += "home = '" + home_team + "' "
-    sql_query += "AND away ='" + away_team + "';"
+    day     = m.group(1)
+    month   = m.group(2)
+    year    = m.group(3)
 
-    print(" (hej)")
+    sql_date = "%s-%s-%s" % (year, month, day)
 
-    with connection.cursor() as cursor:
-        cursor.execute(sql_query)
-        if not cursor.fetchone():
+    for match in match_date.find_by_xpath("//div[@ng-repeat='sortedMarket in market']"):
 
-            odds_list = []
+        event_name = match.find_by_xpath(".//span[@bo-text='data.EventNameDisplay']")
+        team_names = event_name.first.value
+        #print("%s:" % team_names, end="")
+
+        m = re.match(teams_pattern, team_names)
+
+        if m is None:
+            sys.exit(1)
+
+        sql_query = "SELECT * FROM matches WHERE "
+        
+        home_team = m.group(1)
+        away_team = m.group(2)
+        
+        sql_query += "home = '" + home_team + "' "
+        sql_query += "AND away ='" + away_team + "' "
+        sql_query += "AND date ='" + sql_date + "';"
+
+        db.execute_statement(sql_query)
+
+        if db.fetch_one() is not None:
+            continue
+        
+        odds_list = []
+        
+        for odds in match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']"):
             
-            for odds in match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']"):
-                opt = odds.find_by_xpath(\
-                        ".//button[@class='material-button-inner ng-binding']").value
-                
-                odds_list.append(opt)
+            opt = odds.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
+            odds_list.append(opt)
 
-                #print(" %s" % opt, end="")
-            
-            insert_query = "INSERT INTO matches (home, away, odds, site) VALUES('%s', '%s', '%s', 'nordicbet');" % (home_team, away_team, json.dumps(odds_list))
-            #print(insert_query)
-            
-            cursor.execute(insert_query)
-            connection.commit()
+        #print(sql_date)
+        insert_query = "INSERT INTO matches (home, away, date, odds_1, odds_x, odds_2, site) VALUES('%s', '%s', '%s', '%s', '%s', '%s', 'nordicbet');" % (home_team, away_team, sql_date, odds_list[0], odds_list[1], odds_list[2])
 
-            print("Added match to database")
-
+        #print(insert_query)
+        
+        db.execute_statement(insert_query)
+        print("Added '%s - %s' %s, %s" % (home_team, away_team, sql_date, betting_site))

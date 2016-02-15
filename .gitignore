@@ -1,6 +1,7 @@
 *.swp
 
 *.log
+.database_log.txt
 
 *debuglog.txt
 __pycache__/
