@@ -1,80 +1,64 @@
 #!/usr/bin/env python3
 
-import splinter, time, sys, re#, json
-import database
-import pymysql.cursors
+import splinter, time, sys, re
+from betting_site import betting_site
 
-db = database.match_database()
+class nordicbet(betting_site):
+    
+    def __init__(self):
 
-try:
-    db.create_table()
-except:
-    pass
+        super().__init__()
 
-br = splinter.Browser('chrome')
+        self.site = 'Nordicbet'
 
-br.visit('https://www.nordicbet.com/sv/odds#/#?cat=&reg=&sc=3')
-betting_site = 'nordicbet'
-#time.sleep(5)
+    def scrape(self):
 
-iframe = br.find_by_xpath("//iframe[@id='SportsbookIFrame']")
-br.visit(iframe['src'])
-#time.sleep(5)
+        self.br.visit('https://www.nordicbet.com/sv/odds#/#?cat=&reg=&sc=3')
+        comp = "Premier League"
 
+        iframe = self.br.find_by_xpath("//iframe[@id='SportsbookIFrame']")
+        self.br.visit(iframe['src'])
 
-date_regex      = re.compile(".* ([0-9]+)/([0-9]+)/([0-9]+)\n.*")
-teams_pattern   = re.compile("(.*) - (.*)")
+        date_regex      = re.compile(".* ([0-9]+)/([0-9]+)/([0-9]+)\n.*")
+        teams_pattern   = re.compile("(.*) - (.*)")
 
-for match_date in br.find_by_xpath("//div[@ng-repeat='marketgroup in marketGroups | filter:filterMarketGroups']"):
+        for match_date in self.br.find_by_xpath("//div[@ng-repeat='marketgroup in marketGroups | filter:filterMarketGroups']"):
 
-    date_string = match_date.find_by_xpath(".//div[@class='market-date ng-binding']")[0].text
-    m = re.match(date_regex, date_string)
+            date_string = match_date.find_by_xpath(".//div[@class='market-date ng-binding']")[0].text
+            m = re.match(date_regex, date_string)
 
-    if m is None:
-        sys.exit(1)
+            if m is None:
+                sys.exit(1)
 
-    day     = m.group(1)
-    month   = m.group(2)
-    year    = m.group(3)
+            day     = m.group(1)
+            month   = m.group(2)
+            year    = m.group(3)
 
-    sql_date = "%s-%s-%s" % (year, month, day)
+            sql_date = "%s-%s-%s" % (year, month, day)
 
-    for match in match_date.find_by_xpath("//div[@ng-repeat='sortedMarket in market']"):
+            for match in match_date.find_by_xpath(".//div[@ng-repeat='sortedMarket in market']"):
 
-        event_name = match.find_by_xpath(".//span[@bo-text='data.EventNameDisplay']")
-        team_names = event_name.first.value
-        #print("%s:" % team_names, end="")
+                event_name = match.find_by_xpath(".//span[@bo-text='data.EventNameDisplay']")
+                team_names = event_name.first.value
 
-        m = re.match(teams_pattern, team_names)
+                m = re.match(teams_pattern, team_names)
 
-        if m is None:
-            sys.exit(1)
+                if m is None:
+                    sys.exit(1)
 
-        sql_query = "SELECT * FROM matches WHERE "
-        
-        home_team = m.group(1)
-        away_team = m.group(2)
-        
-        sql_query += "home = '" + home_team + "' "
-        sql_query += "AND away ='" + away_team + "' "
-        sql_query += "AND date ='" + sql_date + "';"
+                home_team = m.group(1)
+                away_team = m.group(2)
+                
+                if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
+                    continue
+                
+                odds_list = []
+                
+                for odds in match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']"):
+                    
+                    opt = odds.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
+                    odds_list.append(opt)
 
-        db.execute_statement(sql_query)
+                self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds_list)
 
-        if db.fetch_one() is not None:
-            continue
-        
-        odds_list = []
-        
-        for odds in match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']"):
-            
-            opt = odds.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
-            odds_list.append(opt)
-
-        #print(sql_date)
-        insert_query = "INSERT INTO matches (home, away, date, odds_1, odds_x, odds_2, site) VALUES('%s', '%s', '%s', '%s', '%s', '%s', 'nordicbet');" % (home_team, away_team, sql_date, odds_list[0], odds_list[1], odds_list[2])
-
-        #print(insert_query)
-        
-        db.execute_statement(insert_query)
-        print("Added '%s - %s' %s, %s" % (home_team, away_team, sql_date, betting_site))
+        self.br.close()

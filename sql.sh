@@ -1,3 +1,3 @@
 #!/bin/bash
 
-mysql -u root -p --password="" teams
+mysql -u root -p --password="" odds_data
