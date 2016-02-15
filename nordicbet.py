@@ -61,4 +61,4 @@ class nordicbet(betting_site):
 
                 self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds_list)
 
-        self.br.close()
+        self.br.quit()

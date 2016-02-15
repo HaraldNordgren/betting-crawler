@@ -49,4 +49,4 @@ class betway(betting_site):
 
             self.db.insert_match(comp, home_team, away_team, sql_date, self.site, [odds_1, odds_x, odds_2])
         
-        self.br.close()
+        self.br.quit()
