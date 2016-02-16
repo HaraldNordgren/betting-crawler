@@ -49,16 +49,17 @@ class nordicbet(betting_site):
                 home_team = m.group(1)
                 away_team = m.group(2)
                 
-                if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
-                    continue
+                odds = {}
                 
-                odds_list = []
-                
-                for odds in match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']"):
-                    
-                    opt = odds.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
-                    odds_list.append(opt)
+                for (col, odds_data) in zip(self.db.odds_cols, match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']")):
+                    odds[col] = odds_data.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
 
-                self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds_list)
+                self.db.enter_match(comp, home_team, away_team, sql_date, self.site, odds)
+                
+                if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
+                    self.db.update_odds(comp, home_team, away_team, sql_date, self.site, odds)
+                else:
+                    self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds)
+
 
         self.br.quit()
