@@ -8,35 +8,30 @@ debug = True
 
 class match_database:
 
-    def connect(self):
-        self.connection = pymysql.connect(host='localhost',
-                             user='root',
-                             password='',
-                             db=self.database_name,
-                             charset='utf8mb4',
-                             cursorclass=pymysql.cursors.DictCursor)
-
     def create_database(self):
 
-        db1 = pymysql.connect(host="localhost", user="root")
-        db1.cursor().execute('CREATE DATABASE %s;' % self.database_name)
-        db1.commit()
-        db1.close()
+        db = pymysql.connect(host="localhost", user="root")
+        db.cursor().execute('CREATE DATABASE %s;' % self.database_name)
+        db.commit()
+        db.close()
+
+    def connect(self):
+        self.connection = pymysql.connect(host='localhost', user='root', password='', db=self.database_name, 
+                charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
     def __init__(self):
 
         self.log = open('.database_log.txt', 'a')
         
-        self.odds_cols = ['odds_1', 'odds_x', 'odds_2']
         self.database_name = "odds_data"
         self.matches_table = "matches"
-
+        
+        self.odds_cols = ['odds_1', 'odds_x', 'odds_2']
 
         try:
             self.connect()
         except pymysql.err.InternalError:
             self.create_database()
-
             self.connect()
 
         self.cursor = self.connection.cursor()
@@ -45,7 +40,6 @@ class match_database:
             self.create_table()
         except:
             pass
-
 
     def execute(self, statement):
         

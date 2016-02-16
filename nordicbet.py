@@ -54,7 +54,7 @@ class nordicbet(betting_site):
                 for (col, odds_data) in zip(self.db.odds_cols, match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']")):
                     odds[col] = odds_data.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
 
-                self.db.enter_match(comp, home_team, away_team, sql_date, self.site, odds)
+                #self.db.enter_match(comp, home_team, away_team, sql_date, self.site, odds)
                 
                 if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
                     self.db.update_odds(comp, home_team, away_team, sql_date, self.site, odds)

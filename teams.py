@@ -7,4 +7,5 @@ synonyms = {
     'Watford FC'        : 'Watford',
     'West Bromwich'     : 'West Brom',
     'Leicester City'    : 'Leicester',
-    'Swansea City'      : 'Swansea'}
+    'Swansea City'      : 'Swansea',
+    'AFC Bournemouth'   : 'Bournemouth'}
