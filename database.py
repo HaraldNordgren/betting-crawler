@@ -3,6 +3,8 @@
 import pymysql, sys
 import teams
 
+debug = True
+
 class match_database:
 
     def connect(self, db_name):
@@ -121,15 +123,13 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if arbitrage_sum < 1:
-            #if True:
+            if debug or arbitrage_sum < 1:
 
-                print("Arbitrage found!")
                 print("%s: %s - %s, %s" % (match['competition'], match['home'], match['away'], str(match['date'])))
                 
                 for col in self.odds_cols:
 
                     print(col + ": " + str(max_odds[col]['odds']) + " (" + ', '.join(max_odds[col]['site']) + ")")
 
-                print("arbitrage strength: {:.2f}%".format((1 - arbitrage_sum) * 100))
-                print()
+                print("Arbitrage strength: {:.2f}%\n"
+                        .format((1 - arbitrage_sum) * 100))

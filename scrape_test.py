@@ -3,8 +3,5 @@
 from nordicbet import nordicbet
 from betway import betway
 
-n = nordicbet()
-n.scrape()
-
-b = betway()
-b.scrape()
+nordicbet().scrape()
+betway().scrape()
