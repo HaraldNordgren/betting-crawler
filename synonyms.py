@@ -6,8 +6,8 @@ class synonyms:
 
     def __init__(self):
 
-        list_from   = "ŞüÉéçčňİış"
-        list_to     = "SuEeccnIis"
+        list_from   = "ŞüÉéçčňİışíáñó"
+        list_to     = "SuEeccnIisiano"
 
         self.trans_list = str.maketrans(list_from, list_to)
 
@@ -19,6 +19,7 @@ class synonyms:
                 ('AC '          , ''),
                 ('AD '          , ''),
                 ('ADO '         , ''),
+                ('AEP '         , ''),
                 ('AFC '         , ''),
                 ('BK '          , ''),
                 ('CFR '         , ''),
@@ -34,18 +35,22 @@ class synonyms:
                 ('IF '          , ''),
                 ('IFK '         , ''),
                 ('IK '          , ''),
+                ('KV '          , ''),
                 ('HNK '         , ''),
                 ('KAA '         , ''),
                 ('NK '          , ''),
                 ('PAOK '        , ''),
                 ('PAS '         , ''),
                 ('PEC '         , ''),
+                ('RB '          , ''),
                 ('RNK '         , ''),
+                ('RKC '         , ''),
                 ('RC '          , ''),
                 ('RJ '          , ''),
                 ('SC '          , ''),
                 ('SG '          , ''),
                 ('SK '          , ''),
+                ('SV '          , ''),
                 ('TSG '         , ''),
                 ('VfB '         , ''),
                 ('VfL '         , ''),
@@ -71,7 +76,9 @@ class synonyms:
                 (' FC'          , ''),
                 (' Fören'       , ''),
                 (' JC'          , ''),
+                (' SC'          , ''),
                 (' SK'          , ''),
+                (' Town'        , ''),
                 (' United'      , ' U'),
                 (' Utd'         , ' U'),
                 (' Unidos'      , ' U')]
