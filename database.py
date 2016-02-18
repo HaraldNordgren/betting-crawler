@@ -27,12 +27,12 @@ class match_database:
         precision = 5
         decimals = 3
 
-        statement = "CREATE TABLE %s (competition VARCHAR(30), home VARCHAR(20), " % self.matches_table
-        statement += "away VARCHAR(20), date DATE, "
+        statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
+        statement += "away VARCHAR(100), date DATE, "
         statement += "odds_1 DECIMAL(%d,%d), " % (precision, decimals)
         statement += "odds_x DECIMAL(%d,%d), " % (precision, decimals)
         statement += "odds_2 DECIMAL(%d,%d), " % (precision, decimals)
-        statement += "site VARCHAR(50));"
+        statement += "site VARCHAR(100));"
 
         self.execute(statement)
 
@@ -87,8 +87,10 @@ class match_database:
         changed_odds = {}
 
         for col in self.odds_cols:
-            if Decimal(new_odds[col]) != old_odds[col]:
-                changed_odds[col] = Decimal(new_odds[col]) - old_odds[col]
+            if Decimal(new_odds[col]) == old_odds[col]:
+                continue
+            
+            changed_odds[col] = Decimal(new_odds[col]) - old_odds[col]
 
         if not changed_odds:
             return
