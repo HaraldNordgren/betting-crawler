@@ -4,10 +4,9 @@ import pymysql, sys
 from decimal import Decimal
 from teams import teams
 
-debug = True
+debug = False
 
 MYSQL_UNKNOWN_DATABASE  = 1049
-MYSQL_TABLE_EXISTS      = 1050
 
 class match_database:
 
@@ -24,7 +23,13 @@ class match_database:
 
     def create_table(self):
 
-        decimals = 3
+        check_existance_statement = "SHOW TABLES LIKE '%s';" % self.matches_table
+        self.execute(check_existance_statement)
+
+        if self.cursor.fetchone() is not None:
+            return
+
+        decimals = 2
         precision = decimals + 2
 
         statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
@@ -54,13 +59,8 @@ class match_database:
             self.connect()
 
         self.cursor = self.connection.cursor()
-
-        try:
-            self.create_table()
         
-        except pymysql.err.InternalError as e:
-            if e.args[0] != MYSQL_TABLE_EXISTS:
-                raise e
+        self.create_table()
         
         self.odds_cols  = ['odds_1', 'odds_x', 'odds_2']
         self.teams      = teams()
@@ -121,12 +121,11 @@ class match_database:
         home_team = self.teams.get_synonym(home_team)
         away_team = self.teams.get_synonym(away_team)
         
-        sql_query = "SELECT * FROM matches WHERE "
-        sql_query += "competition = '" + comp
-        sql_query += "' AND home = '" + home_team
-        sql_query += "' AND away ='" + away_team
-        sql_query += "' AND site ='" + site
-        sql_query += "' AND date ='" + sql_date + "';"
+        sql_query = "SELECT odds_1, odds_x, odds_2 FROM matches WHERE "
+        sql_query += "home = '" + home_team
+        sql_query += "' AND away = '" + away_team
+        sql_query += "' AND site = '" + site
+        sql_query += "' AND date = '" + sql_date + "';"
 
         self.execute(sql_query, commit=False)
         
@@ -142,17 +141,16 @@ class match_database:
     def find_arbitrages(self):
 
         find_duplicates_statement = "SELECT competition, home, away, date FROM matches GROUP BY "
-        find_duplicates_statement += "competition, home, away, date HAVING COUNT(*) > 1;"
+        find_duplicates_statement += "home, away, date HAVING COUNT(*) > 1;"
         
         self.execute(find_duplicates_statement, commit=False)
 
         for match in self.cursor.fetchall():
 
             statement = "SELECT odds_1, odds_x, odds_2, site FROM matches WHERE "
-            statement += "competition ='" + match['competition']
-            statement += "' AND home ='" + match['home']
-            statement += "' AND away ='" + match['away']
-            statement += "' AND date ='" + str(match['date']) + "';"
+            statement += "home = '" + match['home']
+            statement += "' AND away = '" + match['away']
+            statement += "' AND date = '" + str(match['date']) + "';"
 
             self.execute(statement)
 
@@ -171,8 +169,8 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if arbitrage_sum >= 1 and not debug:
-                return
+            if arbitrage_sum >= 1.02 and not debug:
+                continue
 
             print("%s: %s - %s, %s" % \
                     (match['competition'], match['home'], match['away'], str(match['date'])))

@@ -9,10 +9,24 @@ class teams(synonyms):
         super().__init__()
 
         self.synonym_list = {
+            'Blackburn Rovers'      : 'Blackburn',
+            'Degerfors FF'          : 'Degerfors',
+            'Dynamo Kyiv'           : 'Dynamo Kiev',
+            'Ajaccio GFCO'          : 'Ajaccio',
+            'Leicester City'        : 'Leicester',
+            'Lincoln City'          : 'Lincoln',
+            'Milton Keynes Dons'    : 'Milton Keynes',
+            'Norwich City'          : 'Norwich',
+            'Olympiakos Piraeus'    : 'Olympiakos',
+            'Stoke City'            : 'Stoke',
+            'Swansea City'          : 'Swansea',
             'Tottenham Hotspur'     : 'Tottenham',
             'West Bromwich'         : 'West Brom',
-            'Leicester City'        : 'Leicester',
-            'Swansea City'          : 'Swansea',
-            'Norwich City'          : 'Norwich',
             'Zenit St Petersburg'   : 'Zenit',
-            'Olympiakos Piraeus'    : 'Olympiakos'}
+            'Fleetwood Town'        : 'Fleetwood',
+            'Huddersfield Town'     : 'Huddersfield',
+            'Mansfield Town'        : 'Mansfield',
+            'Macclesfield Town'     : 'Macclesfield',
+            'Queens Park Rangers FC': 'QPR',
+            'Queens Park Rangers'   : 'QPR',
+            'Northampton Town'      : 'Northampton'}
