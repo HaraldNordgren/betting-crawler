@@ -22,7 +22,8 @@ class nordicbet(betting_site):
         date_regex      = re.compile(".* ([0-9]+)/([0-9]+)/([0-9]+)\n.*")
         teams_pattern   = re.compile("(.*) - (.*)")
 
-        for match_date in self.br.find_by_xpath("//div[@ng-repeat='marketgroup in marketGroups | filter:filterMarketGroups']"):
+        for match_date in self.br.find_by_xpath(
+                "//div[@ng-repeat='marketgroup in marketGroups | filter:filterMarketGroups']"):
 
             date_string = match_date.find_by_xpath(".//div[@class='market-date ng-binding']")[0].text
             m = re.match(date_regex, date_string)
@@ -51,15 +52,12 @@ class nordicbet(betting_site):
                 
                 odds = {}
                 
-                for (col, odds_data) in zip(self.db.odds_cols, match.find_by_xpath(".//div[@class='ms-mw-row ng-scope']")):
-                    odds[col] = odds_data.find_by_xpath(".//button[@class='material-button-inner ng-binding']").value
+                for (col, odds_data) in zip(self.db.odds_cols, match.find_by_xpath(
+                    ".//div[@class='ms-mw-row ng-scope']")):
+                    
+                    odds[col] = odds_data.find_by_xpath(
+                            ".//button[@class='material-button-inner ng-binding']").value
 
-                #self.db.enter_match(comp, home_team, away_team, sql_date, self.site, odds)
-                
-                if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
-                    self.db.update_odds(comp, home_team, away_team, sql_date, self.site, odds)
-                else:
-                    self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds)
-
+                self.db.process_match(comp, home_team, away_team, sql_date, self.site, odds)
 
         self.br.quit()

@@ -41,10 +41,7 @@ class betway(betting_site):
             away_team   = m.group(2)
             
             odds = {'odds_1': m.group(3), 'odds_x': m.group(4), 'odds_2': m.group(5)}
+            
+            self.db.process_match(comp, home_team, away_team, sql_date, self.site, odds)
 
-            if self.db.match_exists(comp, home_team, away_team, sql_date, self.site):
-                self.db.update_odds(comp, home_team, away_team, sql_date, self.site, odds)
-            else:
-                self.db.insert_match(comp, home_team, away_team, sql_date, self.site, odds)
-        
         self.br.quit()

@@ -23,8 +23,6 @@ for offer in j["betoffers"]:
                 home_team = event['homeName']
                 away_team = event['awayName']
 
-                #print(sql_date)
-                #print("%s - %s" % (event['homeName'], event['awayName']))
                 break
 
         odds = {}
@@ -41,11 +39,4 @@ for offer in j["betoffers"]:
             elif outcome['type'] == "OT_TWO":
                 odds['odds_2'] = float_odds
 
-            #print("%s: %s" % (outcome['type'], outcome['odds']))
-        
-        #print()
-
-        if db.match_exists(comp, home_team, away_team, sql_date, site):
-            db.update_odds(comp, home_team, away_team, sql_date, site, odds)
-        else:
-            db.insert_match(comp, home_team, away_team, sql_date, site, odds)
+        db.process_match(comp, home_team, away_team, sql_date, site, odds)

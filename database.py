@@ -2,9 +2,12 @@
 
 import pymysql, sys
 from decimal import Decimal
-import teams
+from teams import teams
 
 debug = True
+
+MYSQL_UNKNOWN_DATABASE  = 1049
+MYSQL_TABLE_EXISTS      = 1050
 
 class match_database:
 
@@ -19,18 +22,34 @@ class match_database:
         self.connection = pymysql.connect(host='localhost', user='root', password='', db=self.database_name, 
                 charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
 
+    def create_table(self):
+
+        precision = 5
+        decimals = 3
+
+        statement = "CREATE TABLE %s (competition VARCHAR(30), home VARCHAR(20), " % self.matches_table
+        statement += "away VARCHAR(20), date DATE, "
+        statement += "odds_1 DECIMAL(%d,%d), " % (precision, decimals)
+        statement += "odds_x DECIMAL(%d,%d), " % (precision, decimals)
+        statement += "odds_2 DECIMAL(%d,%d), " % (precision, decimals)
+        statement += "site VARCHAR(50));"
+
+        self.execute(statement)
+
     def __init__(self):
 
         self.log = open('.database_log.txt', 'a')
         
         self.database_name = "odds_data"
         self.matches_table = "matches"
-        
-        self.odds_cols = ['odds_1', 'odds_x', 'odds_2']
 
         try:
             self.connect()
-        except pymysql.err.InternalError:
+
+        except pymysql.err.InternalError as e:
+            if e.args[0] != MYSQL_UNKNOWN_DATABASE:
+                raise e
+
             self.create_database()
             self.connect()
 
@@ -38,50 +57,23 @@ class match_database:
 
         try:
             self.create_table()
-        except:
-            pass
+        
+        except pymysql.err.InternalError as e:
+            if e.args[0] != MYSQL_TABLE_EXISTS:
+                raise e
+        
+        self.odds_cols  = ['odds_1', 'odds_x', 'odds_2']
+        self.teams      = teams()
 
-    def execute(self, statement):
+    def execute(self, statement, commit=True):
         
         self.log.write("%s\n\n" % statement)
-
         self.cursor.execute(statement)
-        self.connection.commit()
 
-    def create_table(self):
-
-        statement = "CREATE TABLE %s (competition VARCHAR(30), home VARCHAR(20), away VARCHAR(20), " % self.matches_table
-        statement += "date DATE, odds_1 DECIMAL(4,2), odds_x  DECIMAL(4,2), odds_2 DECIMAL(4,2), site VARCHAR(50));"
-        
-        self.execute(statement)
-
-    def change_to_synonym(self, team):
-
-        if team not in teams.synonyms:
-            return team
-        else:
-            return teams.synonyms[team]
-
-    def match_exists(self, comp, home_team, away_team, sql_date, site):
-
-        home_team = self.change_to_synonym(home_team)
-        away_team = self.change_to_synonym(away_team)
-        
-        sql_query = "SELECT * FROM matches WHERE "
-        sql_query += "competition = '" + comp + "' "
-        sql_query += "AND home = '" + home_team + "' "
-        sql_query += "AND away ='" + away_team + "' "
-        sql_query += "AND site ='" + site + "' "
-        sql_query += "AND date ='" + sql_date + "';"
-
-        self.execute(sql_query)
-
-        return self.cursor.fetchone() is not None
+        if commit:
+            self.connection.commit()
 
     def insert_match(self, comp, home_team, away_team, sql_date, site, odds):
-
-        home_team = self.change_to_synonym(home_team)
-        away_team = self.change_to_synonym(away_team)
 
         insert_query = "INSERT INTO matches (competition, home, away, date, odds_1, odds_x, odds_2, site) "
         insert_query += "VALUES('%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date)
@@ -90,19 +82,75 @@ class match_database:
         self.execute(insert_query)
         print("Added %s: '%s - %s' %s, %s" % (comp, home_team, away_team, sql_date, site))
 
+    def update_odds(self, comp, home_team, away_team, sql_date, site, new_odds, old_odds):
+       
+        changed_odds = {}
+
+        for col in self.odds_cols:
+            if Decimal(new_odds[col]) != old_odds[col]:
+                changed_odds[col] = Decimal(new_odds[col]) - old_odds[col]
+
+        if not changed_odds:
+            return
+
+        print("Updated %s: %s - %s, %s, %s" % (comp, home_team, away_team, sql_date, site))
+
+        pairs = []
+        
+        for col in changed_odds:
+            print("%s: %s -> %s (%s)" % (col, old_odds[col], new_odds[col], changed_odds[col]))
+            pairs.append("%s='%s'" % (col, new_odds[col]))
+        
+        print()
+
+        statement = "UPDATE %s SET " % self.matches_table
+        statement += ",".join(pairs)
+
+        statement += " WHERE competition = '" + comp
+        statement += "' AND home = '" + home_team
+        statement += "' AND away ='" + away_team
+        statement += "' AND site ='" + site
+        statement += "' AND date ='" + sql_date + "';"
+
+        self.execute(statement)
+
+    def process_match(self, comp, home_team, away_team, sql_date, site, odds):
+
+        home_team = self.teams.get_synonym(home_team)
+        away_team = self.teams.get_synonym(away_team)
+        
+        sql_query = "SELECT * FROM matches WHERE "
+        sql_query += "competition = '" + comp
+        sql_query += "' AND home = '" + home_team
+        sql_query += "' AND away ='" + away_team
+        sql_query += "' AND site ='" + site
+        sql_query += "' AND date ='" + sql_date + "';"
+
+        self.execute(sql_query, commit=False)
+        
+        match = self.cursor.fetchone()
+
+        if match is None:
+            self.insert_match(comp, home_team, away_team, sql_date, site, odds)
+            return
+        
+        old_odds = {col: match[col] for col in self.odds_cols}
+        self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds)
+
     def find_arbitrages(self):
 
         find_duplicates_statement = "SELECT competition, home, away, date FROM matches GROUP BY "
         find_duplicates_statement += "competition, home, away, date HAVING COUNT(*) > 1;"
-        self.execute(find_duplicates_statement)
+        
+        self.execute(find_duplicates_statement, commit=False)
 
         for match in self.cursor.fetchall():
 
             statement = "SELECT odds_1, odds_x, odds_2, site FROM matches WHERE "
-            statement += "competition ='" + match['competition'] + "' "
-            statement += "AND home ='" + match['home'] + "' "
-            statement += "AND away ='" + match['away'] + "' "
-            statement += "AND date ='" + str(match['date']) + "';"
+            statement += "competition ='" + match['competition']
+            statement += "' AND home ='" + match['home']
+            statement += "' AND away ='" + match['away']
+            statement += "' AND date ='" + str(match['date']) + "';"
 
             self.execute(statement)
 
@@ -121,58 +169,15 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if debug or arbitrage_sum < 1:
+            if arbitrage_sum >= 1 and not debug:
+                return
 
-                print("%s: %s - %s, %s" % (match['competition'], match['home'], match['away'], str(match['date'])))
-                
-                for col in self.odds_cols:
-                    print(col + ": " + str(max_odds[col]['odds']) + " (" + ', '.join(max_odds[col]['site']) + ")")
-
-                print("Arbitrage strength: {:.2f}%\n"
-                        .format((1 - arbitrage_sum) * 100))
-
-    def update_odds(self, comp, home_team, away_team, sql_date, site, new_odds):
-        
-        home_team = self.change_to_synonym(home_team)
-        away_team = self.change_to_synonym(away_team)
+            print("%s: %s - %s, %s" % \
+                    (match['competition'], match['home'], match['away'], str(match['date'])))
             
-        old_odds_statement = "SELECT odds_1, odds_x, odds_2 FROM matches WHERE "
-        old_odds_statement += "competition ='" + comp + "' "
-        old_odds_statement += "AND home ='" + home_team + "' "
-        old_odds_statement += "AND away ='" + away_team + "' "
-        old_odds_statement += "AND date ='" + sql_date + "' "
-        old_odds_statement += "AND site ='" + site + "';"
-        
-        self.execute(old_odds_statement)
-        old_odds = self.cursor.fetchone()
+            for col in self.odds_cols:
+                print(col + ": " + str(max_odds[col]['odds']) + \
+                        " (" + ', '.join(max_odds[col]['site']) + ")")
 
-        changed_odds = {}
-
-        for col in self.odds_cols:
-            if Decimal(new_odds[col]) != old_odds[col]:
-                changed_odds[col] = Decimal(new_odds[col]) - old_odds[col]
-
-        if changed_odds:
-            
-            print("Updated %s: %s - %s, %s, %s" % (comp, home_team, away_team, sql_date, site))
-
-            for col in changed_odds:
-                print("%s: %s -> %s (%s)" % (col, old_odds[col], new_odds[col], changed_odds[col]))
-            
-            print()
-
-            pairs = []
-            
-            for col in changed_odds:
-                pairs.append("%s='%s'" % (col, new_odds[col]))
-
-            statement = "UPDATE %s SET " % self.matches_table
-            statement += ",".join(pairs)
-
-            statement += " WHERE competition = '" + comp + "' "
-            statement += "AND home = '" + home_team + "' "
-            statement += "AND away ='" + away_team + "' "
-            statement += "AND site ='" + site + "' "
-            statement += "AND date ='" + sql_date + "';"
-
-            self.execute(statement)
+            print("Arbitrage strength: {:.2f}%\n"
+                    .format((1 - arbitrage_sum) * 100))
