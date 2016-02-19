@@ -37,11 +37,11 @@ def scrape_json(url):
             float_odds = "%s.%s" % (raw_odds[0], raw_odds[1:])
             
             if outcome['type'] == "OT_ONE":
-                odds['odds_1'] = float_odds
+                odds['1'] = float_odds
             elif outcome['type'] == "OT_CROSS":
-                odds['odds_x'] = float_odds
+                odds['X'] = float_odds
             elif outcome['type'] == "OT_TWO":
-                odds['odds_2'] = float_odds
+                odds['2'] = float_odds
 
         db.process_match(comp, home_team, away_team, sql_date, site, odds)
 

@@ -2,6 +2,7 @@
 
 *.log
 .database_log.txt
+*.json
 
 *debuglog.txt
 __pycache__/
