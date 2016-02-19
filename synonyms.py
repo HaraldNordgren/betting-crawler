@@ -6,108 +6,49 @@ class synonyms:
 
     def __init__(self):
 
-        list_from   = "ŞüÉéçčňİışíáñó"
-        list_to     = "SuEeccnIisiano"
+        list_from   = "ŞüÉéçčňİışíáñóåäöÅÄÖłŁęøéú"
+        list_to     = "SuEeccnIisianoaaoAAOlLeoeu"
 
         self.trans_list = str.maketrans(list_from, list_to)
 
         self.characters_to_remove = ["'", "."]
-        self.replace_by_whitespace = ["-"]
 
-        self.prefixes = [
-                ('AA '          , ''),
-                ('AC '          , ''),
-                ('AD '          , ''),
-                ('ADO '         , ''),
-                ('AEP '         , ''),
-                ('AFC '         , ''),
-                ('BK '          , ''),
-                ('CFR '         , ''),
-                ('CSU '         , ''),
-                ('Borussia '    , ''),
-                ('FBC '         , ''),
-                ('FC '          , ''),
-                ('FCB '         , ''),
-                ('FCM '         , ''),
-                ('FK '          , ''),
-                ('FSV '         , ''),
-                ('GIF '         , ''),
-                ('IF '          , ''),
-                ('IFK '         , ''),
-                ('IK '          , ''),
-                ('KV '          , ''),
-                ('HNK '         , ''),
-                ('KAA '         , ''),
-                ('NK '          , ''),
-                ('PAOK '        , ''),
-                ('PAS '         , ''),
-                ('PEC '         , ''),
-                ('RB '          , ''),
-                ('RNK '         , ''),
-                ('RKC '         , ''),
-                ('RC '          , ''),
-                ('RJ '          , ''),
-                ('SC '          , ''),
-                ('SG '          , ''),
-                ('SK '          , ''),
-                ('SV '          , ''),
-                ('TSG '         , ''),
-                ('VfB '         , ''),
-                ('VfL '         , ''),
-                ('VfR '         , '')]
-
-        self.suffixes = [
-                ('s BK'         , ''),
-                ('s BoIS'       , ''),
-                ('s IF'         , ''),
-                ('s FF'         , ''),
-                ('s FK'         , ''),
-                (' AC'          , ''),
-                (' AD'          , ''),
-                (' Am'          , ''),
-                (' AS'          , ''),
-                (' BoIS'        , ''),
-                (' BK'          , ''),
-                (' CD'          , ''),
-                (' IF'          , ''),
-                (' IS'          , ''),
-                (' FF'          , ''),
-                (' FK'          , ''),
-                (' FC'          , ''),
-                (' Fören'       , ''),
-                (' JC'          , ''),
-                (' SC'          , ''),
-                (' SK'          , ''),
-                (' Town'        , ''),
-                (' United'      , ' U'),
-                (' Utd'         , ' U'),
-                (' Unidos'      , ' U')]
+        self.characters_to_replace = [
+                ("æ", "ae"),
+                ("-", " ")]
 
     def sanitize_characters(self, string):
 
         for char in self.characters_to_remove:
             string = string.replace(char, "")
 
-        for char in self.replace_by_whitespace:
-            string = string.replace(char, " ")
+        for (old, new) in self.characters_to_replace:
+            string = string.replace(old, new)
 
         return string.translate(self.trans_list)
 
     def sanitize_ixes(self, string):
 
         for (old, new) in self.prefixes:
-            string = re.sub("^" + old, new, string)
+            string = re.sub("^" + old, new, string, flags=re.IGNORECASE)
         
         for (old, new) in self.suffixes:
-            string = re.sub(old + "$", new, string)
+            string = re.sub(old + "$", new, string, flags=re.IGNORECASE)
 
         return string
 
     def get_synonym(self, string):
+
+        before = string
 
         string = self.sanitize_characters(string)
 
         if string in self.synonym_list:
             string = self.synonym_list[string]
 
-        return self.sanitize_ixes(string)
+        after = self.sanitize_ixes(string)
+
+        if before != after:
+            self.log.write("%s -> %s\n" % (before, after))
+
+        return after

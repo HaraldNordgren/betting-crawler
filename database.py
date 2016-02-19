@@ -44,7 +44,7 @@ class match_database:
 
     def __init__(self):
 
-        self.log = open('.database_log.txt', 'a')
+        self.log = open('.database_actions.log', 'a')
         
         self.database_name  = "odds_data"
         self.matches_table  = "matches"
