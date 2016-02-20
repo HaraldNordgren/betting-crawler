@@ -34,7 +34,7 @@ class match_database:
         precision = decimals + 2
 
         statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
-        statement += "away VARCHAR(100), date DATE, "
+        statement += "away VARCHAR(100), date DATE, time VARCHAR(5), "
         statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[0], precision, decimals, self.timestamp_cols[0])
         statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[1], precision, decimals, self.timestamp_cols[1])
         statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[2], precision, decimals, self.timestamp_cols[2])
@@ -76,21 +76,33 @@ class match_database:
         if commit:
             self.connection.commit()
 
-    def insert_match(self, comp, home_team, away_team, sql_date, site, odds, timestamp):
+    def insert_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp):
 
-        insert_query = "INSERT INTO matches (competition, home, away, date, site, "
+        insert_query = "INSERT INTO matches (competition, home, away, date, time, site, "
         
         insert_query += "`%s`, %s, " % (self.odds_cols[0], self.timestamp_cols[0])
         insert_query += "`%s`, %s, " % (self.odds_cols[1], self.timestamp_cols[1])
         insert_query += "`%s`, %s) " % (self.odds_cols[2], self.timestamp_cols[2])
         
-        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, site)
+        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, clock_time, site)
         insert_query += "'%s', '%s', " % (odds['1'], timestamp)
         insert_query += "'%s', '%s', " % (odds['X'], timestamp)
         insert_query += "'%s', '%s');" % (odds['2'], timestamp)
         
         self.execute(insert_query)
         print("Added %s: '%s - %s' %s, %s" % (comp, home_team, away_team, sql_date, site))
+
+    def update_time(self, home_team, away_team, sql_date, clock_time, site):
+        
+        statement = "UPDATE %s SET " % self.matches_table
+        statement += "time='%s'" % clock_time
+
+        statement += " WHERE home = '" + home_team
+        statement += "' AND away ='" + away_team
+        statement += "' AND site ='" + site
+        statement += "' AND date ='" + sql_date + "';"
+
+        self.execute(statement)
 
     def update_odds(self, comp, home_team, away_team, sql_date, site, new_odds, old_odds, timestamp):
        
@@ -120,15 +132,14 @@ class match_database:
         statement = "UPDATE %s SET " % self.matches_table
         statement += ", ".join(pairs)
 
-        statement += " WHERE competition = '" + comp
-        statement += "' AND home = '" + home_team
+        statement += " WHERE home = '" + home_team
         statement += "' AND away ='" + away_team
         statement += "' AND site ='" + site
         statement += "' AND date ='" + sql_date + "';"
 
         self.execute(statement)
 
-    def process_match(self, comp, home_team, away_team, sql_date, site, odds):
+    def process_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds):
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
 
@@ -146,8 +157,10 @@ class match_database:
         match = self.cursor.fetchone()
 
         if match is None:
-            self.insert_match(comp, home_team, away_team, sql_date, site, odds, timestamp)
+            self.insert_match(comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp)
             return
+        
+        self.update_time(home_team, away_team, sql_date, clock_time, site)
         
         old_odds = {col: match[col] for col in self.odds_cols}
         self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds, timestamp)
@@ -183,7 +196,7 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if arbitrage_sum >= 1.02 and not debug:
+            if arbitrage_sum >= 1 and not debug:
                 continue
 
             print("%s: %s - %s, %s" % \

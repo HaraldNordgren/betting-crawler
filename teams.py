@@ -39,6 +39,7 @@ class teams(synonyms):
             'Cambridge Utd'         : 'Cambridge',
             'Cambuur Leeuwarden'    : 'Cambuur',
             'Cardiff City'          : 'Cardiff',
+            'Caykur Rizespor'       : 'Rizespor',
             'Charlton Athletic'     : 'Charlton',
             'Chelmsford City'       : 'Chelmsford',
             'Chievo Verona'         : 'Chievo',

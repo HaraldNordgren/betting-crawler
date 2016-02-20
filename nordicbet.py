@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import urllib.request as request
-import json
+import json, re
 import database
 
 site = "Nordicbet"
+time_regex = "([0-9\-]+)T([0-9:]+)Z"
+
 db = database.match_database()
 
 def scrape_json(url):
@@ -13,18 +15,26 @@ def scrape_json(url):
 
     for match in info['el']:
 
-        sql_date = match['ml'][0]['dd'].split("T")[0]
-        home_team = match['epl'][0]['pn']
-        away_team = match['epl'][1]['pn']
+        m = re.match(time_regex, match['ml'][0]['dd'])
 
-        comp = match['scn']
+        if m is None:
+            print("Regex failed: %s" % match['ml'][0]['dd'])
+            continue
 
-        odds = {}
+        sql_date    = m.group(1)
+        clock_time  = m.group(2)[0:5]
+
+        home_team   = match['epl'][0]['pn']
+        away_team   = match['epl'][1]['pn']
+
+        comp        = match['scn']
+
+        odds        = {}
 
         for msl in match['ml'][0]['msl']:
             odds[msl['mst']] = msl['msp']
         
-        db.process_match(comp, home_team, away_team, sql_date, site, odds)
+        db.process_match(comp, home_team, away_team, sql_date, clock_time, site, odds)
 
 
 for i in range(10):

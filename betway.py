@@ -10,7 +10,7 @@ class betway(betting_site):
         super().__init__()
 
         self.site = 'Betway'
-        self.match_regex = '.*\n(?:.*\n|\s*)(.*) - (.*)\n([0-9.]+)\n([0-9.]+)\n([0-9.]+)'
+        self.match_regex = '([0-9:]+)\n(?:.*\n|\s*)(.*) - (.*)\n([0-9.]+)\n([0-9.]+)\n([0-9.]+)(?:\s*)'
 
     def scrape(self):
 
@@ -38,18 +38,25 @@ class betway(betting_site):
                     sql_date = tr.text
                     continue
 
-                m = re.match(self.match_regex, tr.text)
-                #print(repr(tr.text))
+                style = tr.find_by_xpath("./td")[0].find_by_xpath("./div")[0]['style']
 
-                if m is None:
-                    print("Regex failed: %s" % repr(tr.text))
+                if style.split("; ")[1].split(":")[0] != "color":
+                    
+                    # Match is already in progress
                     continue
 
-                home_team   = m.group(1)
-                away_team   = m.group(2)
+                m = re.match(self.match_regex, tr.text)
+
+                if m is None:
+                    print("Regex failed: %s\n" % repr(tr.text))
+                    continue
+
+                clock_time  = m.group(1)
+                home_team   = m.group(2)
+                away_team   = m.group(3)
                 
-                odds = {'1': m.group(3), 'X': m.group(4), '2': m.group(5)}
+                odds = {'1': m.group(4), 'X': m.group(5), '2': m.group(6)}
                 
-                self.db.process_match(comp, home_team, away_team, sql_date, self.site, odds)
+                self.db.process_match(comp, home_team, away_team, sql_date, clock_time, self.site, odds)
 
         self.br.quit()
