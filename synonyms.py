@@ -11,7 +11,7 @@ class synonyms:
 
         self.trans_list = str.maketrans(list_from, list_to)
 
-        self.characters_to_remove = ["'", "."]
+        self.characters_to_remove = ["'", ".", "*"]
 
         self.characters_to_replace = [
                 ("æ", "ae"),
@@ -35,7 +35,9 @@ class synonyms:
         for (old, new) in self.suffixes:
             string = re.sub(old + "$", new, string, flags=re.IGNORECASE)
 
-        return string
+        year_regex = '\s[0-9]{2,}$|^[0-9]{2,}\s'
+
+        return re.sub(year_regex, "", string)
 
     def get_synonym(self, string):
 

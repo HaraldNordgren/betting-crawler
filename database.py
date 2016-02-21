@@ -33,10 +33,10 @@ class match_database:
 
         statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
         statement += "away VARCHAR(100), date DATE, time VARCHAR(5), "
-        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[0], precision, decimals, self.timestamp_cols[0])
-        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[1], precision, decimals, self.timestamp_cols[1])
-        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[2], precision, decimals, self.timestamp_cols[2])
-        statement += "site VARCHAR(100));"
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[0], precision, decimals)
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[1], precision, decimals)
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[2], precision, decimals)
+        statement += "%s TIMESTAMP, site VARCHAR(100));" % self.timestamp_col
 
         self.execute(statement)
 
@@ -48,7 +48,7 @@ class match_database:
         self.matches_table  = "matches"
         
         self.odds_cols      = ['1', 'X', '2']
-        self.timestamp_cols = ["timestamp_" + s for s in self.odds_cols]
+        self.timestamp_col  = "timestamp"
         
         self.teams          = teams()
 
@@ -75,22 +75,25 @@ class match_database:
 
         insert_query = "INSERT INTO matches (competition, home, away, date, time, site, "
         
-        insert_query += '"%s", %s, ' % (self.odds_cols[0], self.timestamp_cols[0])
-        insert_query += '"%s", %s, ' % (self.odds_cols[1], self.timestamp_cols[1])
-        insert_query += '"%s", %s) ' % (self.odds_cols[2], self.timestamp_cols[2])
-        
+        insert_query += '"%s", ' % self.odds_cols[0]
+        insert_query += '"%s", ' % self.odds_cols[1]
+        insert_query += '"%s", ' % self.odds_cols[2]
+        insert_query += '%s) ' % self.timestamp_col
+
         insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, clock_time, site)
-        insert_query += "'%s', '%s', " % (odds['1'], timestamp)
-        insert_query += "'%s', '%s', " % (odds['X'], timestamp)
-        insert_query += "'%s', '%s');" % (odds['2'], timestamp)
-        
+        insert_query += "'%s', " % odds['1']
+        insert_query += "'%s', " % odds['X']
+        insert_query += "'%s', " % odds['2']
+        insert_query += "'%s');" % timestamp
+
         self.execute(insert_query)
         print("Added %s: '%s - %s' %s, %s" % (comp, home_team, away_team, sql_date, site))
 
-    def update_time(self, home_team, away_team, sql_date, clock_time, site):
+    def update_time(self, home_team, away_team, sql_date, clock_time, site, timestamp):
         
         statement = "UPDATE %s SET " % self.matches_table
-        statement += "time='%s'" % clock_time
+        statement += "time='%s', " % clock_time
+        statement += "%s='%s'" % (self.timestamp_col, timestamp)
 
         statement += " WHERE home = '" + home_team
         statement += "' AND away ='" + away_team
@@ -118,9 +121,7 @@ class match_database:
         
         for col in changed_odds:
             print("%s: %s -> %s (%s)" % (col, old_odds[col], new_odds[col], changed_odds[col]))
-            
-            timestamp_col = "timestamp_%s" % col
-            pairs.append('"%s"=\'%s\', %s=\'%s\'' % (col, new_odds[col], timestamp_col, timestamp))
+            pairs.append('"%s"=\'%s\'' % (col, new_odds[col]))
         
         print()
 
@@ -155,7 +156,7 @@ class match_database:
             self.insert_match(comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp)
             return
         
-        self.update_time(home_team, away_team, sql_date, clock_time, site)
+        self.update_time(home_team, away_team, sql_date, clock_time, site, timestamp)
 
         old_odds = {col: match[col] for col in self.odds_cols}
         self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds, timestamp)
