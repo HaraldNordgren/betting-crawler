@@ -1,33 +1,31 @@
 #!/usr/bin/env python3
 
-import pymysql, sys, time
+import psycopg2, psycopg2.extras
+import sys, time
 from decimal import Decimal
 from teams import teams
 
 debug = False
 
-MYSQL_UNKNOWN_DATABASE  = 1049
-
 class match_database:
 
     def create_database(self):
 
-        db = pymysql.connect(host="localhost", user="root")
+        db = pymysql.connect(host='localhost', user='postgres', password='admin')
         db.cursor().execute('CREATE DATABASE %s;' % self.database_name)
         db.commit()
         db.close()
 
     def connect(self):
 
-        self.connection = pymysql.connect(host='localhost', user='root', password='', db=self.database_name, 
-                charset='utf8mb4', cursorclass=pymysql.cursors.DictCursor)
+        self.connection = psycopg2.connect(host='localhost', user='postgres', password='admin', dbname='odds_data')
 
     def create_table(self):
 
-        check_existance_statement = "SHOW TABLES LIKE '%s';" % self.matches_table
-        self.execute(check_existance_statement)
+        table_exists_statement = "SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='%s');" % self.matches_table
+        self.execute(table_exists_statement)
 
-        if self.cursor.fetchone() is not None:
+        if self.cursor.fetchone()[0]:
             return
 
         decimals = 2
@@ -35,9 +33,9 @@ class match_database:
 
         statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
         statement += "away VARCHAR(100), date DATE, time VARCHAR(5), "
-        statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[0], precision, decimals, self.timestamp_cols[0])
-        statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[1], precision, decimals, self.timestamp_cols[1])
-        statement += "`%s` DECIMAL(%d,%d), %s TIMESTAMP," % (self.odds_cols[2], precision, decimals, self.timestamp_cols[2])
+        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[0], precision, decimals, self.timestamp_cols[0])
+        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[1], precision, decimals, self.timestamp_cols[1])
+        statement += '"%s" DECIMAL(%d,%d), %s TIMESTAMP,' % (self.odds_cols[2], precision, decimals, self.timestamp_cols[2])
         statement += "site VARCHAR(100));"
 
         self.execute(statement)
@@ -57,14 +55,11 @@ class match_database:
         try:
             self.connect()
 
-        except pymysql.err.InternalError as e:
-            if e.args[0] != MYSQL_UNKNOWN_DATABASE:
-                raise e
-
+        except psycopg2.OperationalError:
             self.create_database()
             self.connect()
 
-        self.cursor = self.connection.cursor()
+        self.cursor = self.connection.cursor(cursor_factory = psycopg2.extras.DictCursor)
         
         self.create_table()
 
@@ -80,9 +75,9 @@ class match_database:
 
         insert_query = "INSERT INTO matches (competition, home, away, date, time, site, "
         
-        insert_query += "`%s`, %s, " % (self.odds_cols[0], self.timestamp_cols[0])
-        insert_query += "`%s`, %s, " % (self.odds_cols[1], self.timestamp_cols[1])
-        insert_query += "`%s`, %s) " % (self.odds_cols[2], self.timestamp_cols[2])
+        insert_query += '"%s", %s, ' % (self.odds_cols[0], self.timestamp_cols[0])
+        insert_query += '"%s", %s, ' % (self.odds_cols[1], self.timestamp_cols[1])
+        insert_query += '"%s", %s) ' % (self.odds_cols[2], self.timestamp_cols[2])
         
         insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, clock_time, site)
         insert_query += "'%s', '%s', " % (odds['1'], timestamp)
@@ -125,7 +120,7 @@ class match_database:
             print("%s: %s -> %s (%s)" % (col, old_odds[col], new_odds[col], changed_odds[col]))
             
             timestamp_col = "timestamp_%s" % col
-            pairs.append("`%s`='%s', %s='%s'" % (col, new_odds[col], timestamp_col, timestamp))
+            pairs.append('"%s"=\'%s\', %s=\'%s\'' % (col, new_odds[col], timestamp_col, timestamp))
         
         print()
 
@@ -146,7 +141,7 @@ class match_database:
         home_team = self.teams.get_synonym(home_team)
         away_team = self.teams.get_synonym(away_team)
         
-        sql_query = "SELECT `1`, `X`, `2` FROM matches WHERE "
+        sql_query = 'SELECT "1", "X", "2" FROM matches WHERE '
         sql_query += "home = '" + home_team
         sql_query += "' AND away = '" + away_team
         sql_query += "' AND site = '" + site
@@ -161,20 +156,20 @@ class match_database:
             return
         
         self.update_time(home_team, away_team, sql_date, clock_time, site)
-        
+
         old_odds = {col: match[col] for col in self.odds_cols}
         self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds, timestamp)
 
     def find_arbitrages(self):
 
-        find_duplicates_statement = "SELECT competition, home, away, date FROM matches GROUP BY "
+        find_duplicates_statement = "SELECT min(competition) as competition, home, away, date FROM matches GROUP BY "
         find_duplicates_statement += "home, away, date HAVING COUNT(*) > 1;"
         
         self.execute(find_duplicates_statement, commit=False)
 
         for match in self.cursor.fetchall():
 
-            statement = "SELECT `1`, `X`, `2`, site FROM matches WHERE "
+            statement = 'SELECT "1", "X", "2", site FROM matches WHERE '
             statement += "home = '" + match['home']
             statement += "' AND away = '" + match['away']
             statement += "' AND date = '" + str(match['date']) + "';"
