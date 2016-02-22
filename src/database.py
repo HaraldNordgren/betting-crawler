@@ -137,7 +137,7 @@ class match_database:
 
     def process_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds):
 
-        timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
+        timestamp = time.strftime('%Y-%m-%d %H:%M:%S %z')
 
         home_team = self.teams.get_synonym(home_team)
         away_team = self.teams.get_synonym(away_team)
