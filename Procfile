@@ -1,1 +1,2 @@
-web: python3 src/scrape_test.py
+web: gunicorn gettingstarted.wsgi --log-file -
+web: ./start.sh
