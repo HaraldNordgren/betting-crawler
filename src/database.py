@@ -11,14 +11,14 @@ class match_database:
 
     def create_database(self):
 
-        db = pymysql.connect(host='localhost', user='postgres', password='admin')
+        db = psycopg2.connect(host='ec2-54-83-198-111.compute-1.amazonaws.com', user='pjormmuewnnkwm', password='tf5q17_nrEOswfolbd3PS6wmNF', port=5432)
         db.cursor().execute('CREATE DATABASE %s;' % self.database_name)
         db.commit()
         db.close()
 
     def connect(self):
 
-        self.connection = psycopg2.connect(host='localhost', user='postgres', password='admin', dbname='odds_data')
+        self.connection = psycopg2.connect(host='ec2-54-83-198-111.compute-1.amazonaws.com', user='pjormmuewnnkwm', password='tf5q17_nrEOswfolbd3PS6wmNF', dbname='da3j6ejvc5arr0', port=5432)
 
     def create_table(self):
 
@@ -195,12 +195,12 @@ class match_database:
             if arbitrage_sum >= 1 and not debug:
                 continue
 
-            print("%s: %s - %s, %s" % \
+            print("%s: %s - %s, %s<br>" % \
                     (match['competition'], match['home'], match['away'], str(match['date'])))
             
             for col in self.odds_cols:
                 print(col + ": " + str(max_odds[col]['odds']) + \
-                        " (" + ', '.join(max_odds[col]['site']) + ")")
+                        " (" + ', '.join(max_odds[col]['site']) + ")<br>")
 
-            print("Arbitrage strength: {:.2f}%\n"
+            print("Arbitrage strength: {:.2f}%\n<br><br>"
                     .format((1 - arbitrage_sum) * 100))

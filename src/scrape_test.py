@@ -2,6 +2,6 @@
 
 from betway import betway
 
-#betway().scrape()
+betway().scrape()
 import unibet
 import nordicbet
