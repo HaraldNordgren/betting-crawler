@@ -192,7 +192,7 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if arbitrage_sum >= 1 and not debug:
+            if arbitrage_sum >= 1.05 and not debug:
                 continue
 
             print("%s: %s - %s, %s<br>" % \
