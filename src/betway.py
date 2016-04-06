@@ -18,7 +18,7 @@ class betway(betting_site):
 
         self.br.visit(url)
 
-        time.sleep(10)
+        time.sleep(20)
 
         for oddsbrowser in self.br.find_by_xpath("//table[@class='odds-browser']"):
             
