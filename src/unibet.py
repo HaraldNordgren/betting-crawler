@@ -11,6 +11,9 @@ db = database.match_database()
 
 def scrape_json(url):
 
+    import ipdb
+    ipdb.set_trace()
+
     info = json.loads(request.urlopen(url).read().decode())
 
     for offer in info["betoffers"]:

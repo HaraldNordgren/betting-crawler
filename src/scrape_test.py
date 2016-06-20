@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 
 from betway import betway
+betway().scrape()
 
-#betway().scrape()
-import unibet
+# TODO: No team names currently
 import nordicbet
+
+# TODO: Navigate new API
+#import unibet

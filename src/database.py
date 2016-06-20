@@ -2,10 +2,12 @@
 
 import psycopg2, psycopg2.extras
 import sys, time
+
 from decimal import Decimal
 from teams import teams
 
-debug = False
+DEBUG = False
+
 
 class match_database:
 
@@ -71,6 +73,9 @@ class match_database:
         if commit:
             self.connection.commit()
 
+    def truncate_string(self, data):
+        return data[:25] + (data[25:] and '..')
+
     def insert_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp):
 
         insert_query = "INSERT INTO matches (competition, home, away, date, time, site, "
@@ -80,17 +85,16 @@ class match_database:
         insert_query += '"%s", ' % self.odds_cols[2]
         insert_query += '%s) ' % self.timestamp_col
 
-        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, clock_time, site)
+        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (truncate_string(comp), home_team, away_team, sql_date, clock_time, site)
         insert_query += "'%s', " % odds['1']
         insert_query += "'%s', " % odds['X']
         insert_query += "'%s', " % odds['2']
         insert_query += "'%s');" % timestamp
 
         self.execute(insert_query)
-        print("Added %s: '%s - %s' %s, %s" % (comp, home_team, away_team, sql_date, site))
+        print('ADDED: "%s: %s - %s %s, %s"' % (comp, home_team, away_team, sql_date, site))
 
     def update_time(self, home_team, away_team, sql_date, clock_time, site, timestamp):
-        
         statement = "UPDATE %s SET " % self.matches_table
         statement += "time='%s', " % clock_time
         statement += "%s='%s'" % (self.timestamp_col, timestamp)
@@ -113,14 +117,15 @@ class match_database:
             changed_odds[col] = Decimal(str(new_odds[col])) - old_odds[col]
 
         if not changed_odds:
+            print('NOT UPDATED: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
             return
-
-        print("Updated %s: %s - %s, %s, %s" % (comp, home_team, away_team, sql_date, site))
 
         pairs = []
         
+        print('UPDATING: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
         for col in changed_odds:
-            print("%s: %s -> %s (%s)" % (col, old_odds[col], new_odds[col], changed_odds[col]))
+            print("%s: %s -> %s (%s)" % (col, old_odds[col],
+                new_odds[col], changed_odds[col]))
             pairs.append('"%s"=\'%s\'' % (col, new_odds[col]))
         
         print()
@@ -155,7 +160,7 @@ class match_database:
         if match is None:
             self.insert_match(comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp)
             return
-        
+
         self.update_time(home_team, away_team, sql_date, clock_time, site, timestamp)
 
         old_odds = {col: match[col] for col in self.odds_cols}
@@ -165,9 +170,9 @@ class match_database:
 
         find_duplicates_statement = "SELECT min(competition) as competition, home, away, date FROM matches GROUP BY "
         find_duplicates_statement += "home, away, date HAVING COUNT(*) > 1;"
-        
         self.execute(find_duplicates_statement, commit=False)
 
+        arbitrages_fond = 0
         for match in self.cursor.fetchall():
 
             statement = 'SELECT "1", "X", "2", site FROM matches WHERE '
@@ -192,15 +197,19 @@ class match_database:
             for col in self.odds_cols:
                 arbitrage_sum += 1 / max_odds[col]['odds']
 
-            if arbitrage_sum >= 1.05 and not debug:
+            if arbitrage_sum >= 1 and not DEBUG:
                 continue
 
-            print("%s: %s - %s, %s<br>" % \
+            arbitrages_fond += 1
+            print("%s: %s - %s, %s" % \
                     (match['competition'], match['home'], match['away'], str(match['date'])))
-            
+
             for col in self.odds_cols:
                 print(col + ": " + str(max_odds[col]['odds']) + \
-                        " (" + ', '.join(max_odds[col]['site']) + ")<br>")
+                        " (" + ', '.join(max_odds[col]['site']) + ")")
 
-            print("Arbitrage strength: {:.2f}%\n<br><br>"
+            print("Arbitrage strength: {:.2f}%\n"
                     .format((1 - arbitrage_sum) * 100))
+
+        if arbitrages_fond == 0:
+            print("NO ARBITRAGES FOUND!")

@@ -1,7 +1,18 @@
 #!/bin/bash
 
+PYTHON=python3
+
+cd src
+
 while : ; do
-    python3 src/scrape_test.py
-    python3 src/database_test.py > hello/templates/index.html
-    sleep 600
+    $PYTHON scrape_test.py
+
+    echo; echo "CALCULATING ARBITRAGES:"
+    $PYTHON database_test.py
+
+    echo "SLEEPING FOR 5 MINUTES"
+    for i in $(seq 1 60); do
+        sleep 10
+        echo -n "."
+    done
 done
