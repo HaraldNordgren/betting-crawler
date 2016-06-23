@@ -11,5 +11,7 @@ class betting_site:
     def __init__(self):
 
         self.db = database.match_database()
+        self.db.remove_old_matches()
+
         self.br = splinter.Browser('chrome')
 

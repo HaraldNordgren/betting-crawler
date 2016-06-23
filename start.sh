@@ -1,5 +1,7 @@
 #!/bin/bash
 
+#set -e
+
 PYTHON=python3
 
 cd src
@@ -7,12 +9,14 @@ cd src
 while : ; do
     $PYTHON scrape_test.py
 
-    echo; echo "CALCULATING ARBITRAGES:"
+    printf "\nCALCULATING ARBITRAGES\n"
     $PYTHON database_test.py
 
-    echo "SLEEPING FOR 5 MINUTES"
+    printf "\nSLEEPING FOR 5 MINUTES\n"
     for i in $(seq 1 60); do
         sleep 10
-        echo -n "."
+        printf "."
     done
+
+    printf "\n"
 done

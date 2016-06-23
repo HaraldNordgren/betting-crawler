@@ -1,7 +1,14 @@
-dj-database-url==0.4.0
-Django==1.9.2
-gunicorn==19.4.5
-whitenoise==2.0.6
+# Dependecies (Ubuntu)
+# libpq-dev
 
+#Ubuntu 14.04
+#dj-database-url==0.4.0
+#Django==1.9.2
+#gunicorn==19.4.5
+#whitenoise==2.0.6
 psycopg2==2.6.1
 splinter==0.7.3
+
+#Other
+#psycopg2
+#splinter

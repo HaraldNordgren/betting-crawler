@@ -5,6 +5,7 @@ import sys, time
 
 from decimal import Decimal
 from teams import teams
+from time import gmtime, strftime
 
 DEBUG = False
 
@@ -18,9 +19,11 @@ class match_database:
         db.commit()
         db.close()
 
+
     def connect(self):
 
         self.connection = psycopg2.connect(host='ec2-54-83-198-111.compute-1.amazonaws.com', user='pjormmuewnnkwm', password='tf5q17_nrEOswfolbd3PS6wmNF', dbname='da3j6ejvc5arr0', port=5432)
+
 
     def create_table(self):
 
@@ -41,6 +44,7 @@ class match_database:
         statement += "%s TIMESTAMP, site VARCHAR(100));" % self.timestamp_col
 
         self.execute(statement)
+
 
     def __init__(self):
 
@@ -65,16 +69,18 @@ class match_database:
         
         self.create_table()
 
+
     def execute(self, statement, commit=True):
-        
         self.log.write("%s\n\n" % statement)
         self.cursor.execute(statement)
 
         if commit:
             self.connection.commit()
 
+
     def truncate_string(self, data):
         return data[:25] + (data[25:] and '..')
+
 
     def insert_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp):
 
@@ -85,14 +91,15 @@ class match_database:
         insert_query += '"%s", ' % self.odds_cols[2]
         insert_query += '%s) ' % self.timestamp_col
 
-        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (truncate_string(comp), home_team, away_team, sql_date, clock_time, site)
+        insert_query += "VALUES('%s', '%s', '%s', '%s', '%s', '%s', " % (comp, home_team, away_team, sql_date, clock_time, site)
         insert_query += "'%s', " % odds['1']
         insert_query += "'%s', " % odds['X']
         insert_query += "'%s', " % odds['2']
         insert_query += "'%s');" % timestamp
 
         self.execute(insert_query)
-        print('ADDED: "%s: %s - %s %s, %s"' % (comp, home_team, away_team, sql_date, site))
+        print('ADDED "%s - %s (%s)"' % (home_team, away_team, sql_date))
+
 
     def update_time(self, home_team, away_team, sql_date, clock_time, site, timestamp):
         statement = "UPDATE %s SET " % self.matches_table
@@ -113,16 +120,15 @@ class match_database:
         for col in self.odds_cols:
             if Decimal(str(new_odds[col])) == old_odds[col]:
                 continue
-            
             changed_odds[col] = Decimal(str(new_odds[col])) - old_odds[col]
 
         if not changed_odds:
-            print('NOT UPDATED: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
-            return
+            #print('NOT UPDATED: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
+            return False
 
         pairs = []
         
-        print('UPDATING: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
+        print('UPDATING "%s - %s, %s"' % (home_team, away_team, sql_date))
         for col in changed_odds:
             print("%s: %s -> %s (%s)" % (col, old_odds[col],
                 new_odds[col], changed_odds[col]))
@@ -140,6 +146,8 @@ class match_database:
 
         self.execute(statement)
 
+        return True
+
     def process_match(self, comp, home_team, away_team, sql_date, clock_time, site, odds):
 
         timestamp = time.strftime('%Y-%m-%d %H:%M:%S %z')
@@ -156,15 +164,14 @@ class match_database:
         self.execute(sql_query, commit=False)
         
         match = self.cursor.fetchone()
-
         if match is None:
             self.insert_match(comp, home_team, away_team, sql_date, clock_time, site, odds, timestamp)
-            return
+            return True
 
         self.update_time(home_team, away_team, sql_date, clock_time, site, timestamp)
 
         old_odds = {col: match[col] for col in self.odds_cols}
-        self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds, timestamp)
+        return self.update_odds(comp, home_team, away_team, sql_date, site, odds, old_odds, timestamp)
 
     def find_arbitrages(self):
 
@@ -172,7 +179,7 @@ class match_database:
         find_duplicates_statement += "home, away, date HAVING COUNT(*) > 1;"
         self.execute(find_duplicates_statement, commit=False)
 
-        arbitrages_fond = 0
+        found = 0
         for match in self.cursor.fetchall():
 
             statement = 'SELECT "1", "X", "2", site FROM matches WHERE '
@@ -200,7 +207,7 @@ class match_database:
             if arbitrage_sum >= 1 and not DEBUG:
                 continue
 
-            arbitrages_fond += 1
+            found += 1
             print("%s: %s - %s, %s" % \
                     (match['competition'], match['home'], match['away'], str(match['date'])))
 
@@ -211,5 +218,12 @@ class match_database:
             print("Arbitrage strength: {:.2f}%\n"
                     .format((1 - arbitrage_sum) * 100))
 
-        if arbitrages_fond == 0:
-            print("NO ARBITRAGES FOUND!")
+        if found == 0:
+            print("No arbitrages found")
+
+
+    def remove_old_matches(self):
+
+        statement = 'DELETE FROM matches WHERE '
+        statement += "%s < '%s'" % (self.timestamp_col, strftime("%Y-%m-%d", gmtime()))
+        self.execute(statement)

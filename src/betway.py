@@ -25,7 +25,10 @@ class betway(betting_site):
         for oddsbrowser in self.br.find_by_xpath("//table[@class='odds-browser']"):
             
             oddsbrowser.click()
+            found = 0
+            
             comp = oddsbrowser.find_by_xpath("./thead/tr").text.split("\n")[1]
+            print("¤ " + comp.upper())
 
             for tr in oddsbrowser.find_by_xpath("./tbody/tr"):
 
@@ -42,13 +45,11 @@ class betway(betting_site):
 
                 style = tr.find_by_xpath("./td")[0].find_by_xpath("./div")[0]['style']
 
+                # Match is already in progress
                 if style.split("; ")[1].split(":")[0] != "color":
-                    
-                    # Match is already in progress
                     continue
 
                 m = re.match(self.match_regex, tr.text)
-
                 if m is None:
                     print("Regex failed: %s\n" % repr(tr.text))
                     continue
@@ -56,9 +57,12 @@ class betway(betting_site):
                 clock_time  = m.group(1)
                 home_team   = m.group(2)
                 away_team   = m.group(3)
-                
                 odds = {'1': m.group(4), 'X': m.group(5), '2': m.group(6)}
                 
-                self.db.process_match(comp, home_team, away_team, sql_date, clock_time, self.site, odds)
+                if self.db.process_match(comp, home_team, away_team, sql_date, clock_time, self.site, odds):
+                    found += 1
+
+            if found > 0:
+                print()
 
         self.br.quit()

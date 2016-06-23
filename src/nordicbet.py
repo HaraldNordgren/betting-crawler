@@ -27,12 +27,18 @@ def scrape_json(url):
         away_team   = match['epl'][1]['pn']
 
         if not home_team or not away_team:
-            print("Team names failed")
-            continue
 
-        comp        = match['scn']
+            teams = match['en'].split(" - ")
+            if len(teams) != 2:
+                print("Team names failed")
+                import ipdb; ipdb.set_trace()
+                continue
 
-        odds        = {}
+            home_team = teams[0]
+            away_team = teams[1]
+
+        comp = match['scn']
+        odds = {}
 
         for msl in match['ml'][0]['msl']:
             odds[msl['mst']] = msl['msp']
