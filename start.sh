@@ -1,11 +1,10 @@
 #!/bin/bash
 
-#set -e
+set -e
 
 PYTHON=python3
 
 cd src
-
 while : ; do
     $PYTHON scrape_test.py
 

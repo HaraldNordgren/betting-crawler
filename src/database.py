@@ -8,12 +8,13 @@ from teams import teams
 from time import gmtime, strftime
 
 DEBUG = False
+DECIMALS = 2
+PRECISION = DECIMALS + 2
 
 
 class match_database:
 
     def create_database(self):
-
         db = psycopg2.connect(host='ec2-54-83-198-111.compute-1.amazonaws.com', user='pjormmuewnnkwm', password='tf5q17_nrEOswfolbd3PS6wmNF', port=5432)
         db.cursor().execute('CREATE DATABASE %s;' % self.database_name)
         db.commit()
@@ -21,26 +22,21 @@ class match_database:
 
 
     def connect(self):
-
         self.connection = psycopg2.connect(host='ec2-54-83-198-111.compute-1.amazonaws.com', user='pjormmuewnnkwm', password='tf5q17_nrEOswfolbd3PS6wmNF', dbname='da3j6ejvc5arr0', port=5432)
 
 
     def create_table(self):
-
         table_exists_statement = "SELECT EXISTS(SELECT * FROM information_schema.tables WHERE table_name='%s');" % self.matches_table
         self.execute(table_exists_statement)
 
         if self.cursor.fetchone()[0]:
             return
 
-        decimals = 2
-        precision = decimals + 2
-
         statement = "CREATE TABLE %s (competition VARCHAR(100), home VARCHAR(100), " % self.matches_table
         statement += "away VARCHAR(100), date DATE, time VARCHAR(5), "
-        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[0], precision, decimals)
-        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[1], precision, decimals)
-        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[2], precision, decimals)
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[0], PRECISION, DECIMALS)
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[1], PRECISION, DECIMALS)
+        statement += '"%s" DECIMAL(%d,%d), ' % (self.odds_cols[2], PRECISION, DECIMALS)
         statement += "%s TIMESTAMP, site VARCHAR(100));" % self.timestamp_col
 
         self.execute(statement)
@@ -66,7 +62,6 @@ class match_database:
             self.connect()
 
         self.cursor = self.connection.cursor(cursor_factory = psycopg2.extras.DictCursor)
-        
         self.create_table()
 
 
@@ -116,34 +111,35 @@ class match_database:
     def update_odds(self, comp, home_team, away_team, sql_date, site, new_odds, old_odds, timestamp):
        
         changed_odds = {}
-
+        changed_odds_list = []
         for col in self.odds_cols:
             if Decimal(str(new_odds[col])) == old_odds[col]:
                 continue
             changed_odds[col] = Decimal(str(new_odds[col])) - old_odds[col]
+            changed_odds_list.append((col, changed_odds[col]))
 
         if not changed_odds:
-            #print('NOT UPDATED: "%s: %s - %s, %s"' % (comp, home_team, away_team, sql_date))
             return False
 
         pairs = []
+        sign_string = "%+." + str(DECIMALS) + "f"
+        format_string = "%s: " + "%s -> %s (%s)" % (sign_string, sign_string, sign_string)
         
-        print('UPDATING "%s - %s, %s"' % (home_team, away_team, sql_date))
-        for col in changed_odds:
-            print("%s: %s -> %s (%s)" % (col, old_odds[col],
-                new_odds[col], changed_odds[col]))
+        print('\nUPDATING "%s - %s, %s"' % (home_team, away_team, sql_date))
+        for (col, odds_change) in changed_odds_list:
+            print(format_string % (col, old_odds[col],
+                odds_change, Decimal(new_odds[col])))
+            #import ipdb; ipdb.set_trace()
             pairs.append('"%s"=\'%s\'' % (col, new_odds[col]))
-        
-        print()
 
         statement = "UPDATE %s SET " % self.matches_table
         statement += ", ".join(pairs)
-
         statement += " WHERE home = '" + home_team
         statement += "' AND away ='" + away_team
         statement += "' AND site ='" + site
         statement += "' AND date ='" + sql_date + "';"
 
+        #import ipdb; ipdb.set_trace()
         self.execute(statement)
 
         return True
