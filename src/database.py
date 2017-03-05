@@ -128,8 +128,7 @@ class match_database:
         print('\nUPDATING "%s - %s, %s"' % (home_team, away_team, sql_date))
         for (col, odds_change) in changed_odds_list:
             print(format_string % (col, old_odds[col],
-                odds_change, Decimal(new_odds[col])))
-            #import ipdb; ipdb.set_trace()
+                Decimal(new_odds[col]), odds_change))
             pairs.append('"%s"=\'%s\'' % (col, new_odds[col]))
 
         statement = "UPDATE %s SET " % self.matches_table
@@ -139,6 +138,7 @@ class match_database:
         statement += "' AND site ='" + site
         statement += "' AND date ='" + sql_date + "';"
 
+        print(statement)
         #import ipdb; ipdb.set_trace()
         self.execute(statement)
 

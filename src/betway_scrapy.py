@@ -1,3 +1,4 @@
+import database
 import logging
 import re
 import scrapy
@@ -13,6 +14,8 @@ class QuotesSpider(scrapy.Spider):
     ]
 
     match_regex = '([0-9:]+).*\+[0-9]+ (.*) - (.*) ([0-9.]+) ([0-9.]+) ([0-9.]+)'
+
+    db = database.match_database()
 
     def parse(self, response):
         matchodds = False
@@ -41,6 +44,21 @@ class QuotesSpider(scrapy.Spider):
             m = re.match(self.match_regex, text)
             if m is None:
                 continue
+
+            if True:
+                self.db.process_match(
+                    comp="(Empty)",
+                    home_team=m.group(2),
+                    away_team=m.group(3),
+                    sql_date=date,
+                    clock_time=m.group(1),
+                    site='Betway',
+                    odds={
+                        '1': m.group(4),
+                        'X': m.group(5),
+                        '2': m.group(6),
+                    },
+                )
 
             yield {'match': {
                 'date': date,
